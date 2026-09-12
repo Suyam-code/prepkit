@@ -10,10 +10,18 @@ import type { Kit as KitShape } from "@prepkit/shared";
  * for the same rules. Mongoose is used for querying/ownership, not
  * content validation.
  */
+export interface PracticeRecord {
+  seen: number;
+  lastConfidence: number; // 1-5
+  lastSeenAt: Date;
+}
+
 export interface KitDoc extends Document {
   userId: Types.ObjectId;
   status: "draft" | "generating" | "ready" | "failed";
   content: KitShape;
+  /** Flashcard practice tracking — app bookkeeping, not part of the Appendix A schema, so it's kept separate from `content` rather than bolted onto it. Keyed by flashcard id. */
+  practice: Record<string, PracticeRecord>;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -27,6 +35,7 @@ const kitSchema = new Schema<KitDoc>(
       default: "draft",
     },
     content: { type: Schema.Types.Mixed, required: true },
+    practice: { type: Schema.Types.Mixed, default: {} },
   },
   { timestamps: true }
 );

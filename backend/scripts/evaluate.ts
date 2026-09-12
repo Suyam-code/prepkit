@@ -2,13 +2,11 @@
  * npm run evaluate -- --input <cases.json> --output <kits.json>
  *
  * Reads Appendix-B input cases, runs the SAME orchestrator the API uses
- * (pipeline/orchestrator.ts — not built yet, next phase), and writes
- * Appendix-B shaped output. One case failing must not abort the run.
- *
- * Intentionally left as a stub with the CLI parsing + I/O + error
- * handling already correct, so that wiring in the real orchestrator
- * later is a one-line change (see TODO below) rather than a rewrite.
+ * (pipeline/orchestrator.ts), and writes Appendix-B shaped output. Cases
+ * run sequentially (see comment below) and one case failing never aborts
+ * the run — it's recorded as a { status: "failed", error } entry instead.
  */
+import "dotenv/config";
 import fs from "node:fs/promises";
 import mongoose from "mongoose";
 import {
@@ -17,6 +15,7 @@ import {
   type BatchCase,
   type BatchResult,
 } from "@prepkit/shared";
+import { runOrchestrator } from "../src/pipeline/orchestrator";
 
 function parseArgs(argv: string[]) {
   const out: { input?: string; output?: string } = {};
@@ -32,10 +31,12 @@ function parseArgs(argv: string[]) {
 
 async function runCase(kase: BatchCase): Promise<BatchResult> {
   try {
-    // TODO (pipeline phase): replace with
-    //   const kit = await orchestrator.run({ jd: kase.jd, company_url: kase.company_url, days: kase.days });
-    //   return { id: kase.id, status: "ok", kit, error: null };
-    throw new Error("orchestrator not implemented yet");
+    const kit = await runOrchestrator({
+      jd: kase.jd,
+      company_url: kase.company_url,
+      days: kase.days,
+    });
+    return { id: kase.id, status: "ok", kit, error: null };
   } catch (err) {
     return {
       id: kase.id,
