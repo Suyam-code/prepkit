@@ -2,6 +2,7 @@ import { Router } from "express";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { User } from "../models/User";
+import { requireAuth, signToken } from "../middleware/requireAuth";
 
 export const authRouter = Router();
 
@@ -22,8 +23,7 @@ authRouter.post("/register", async (req, res, next) => {
     const passwordHash = await bcrypt.hash(password, 10);
     const user = await User.create({ email, passwordHash });
 
-    req.session.userId = user.id;
-    res.status(201).json({ id: user.id, email: user.email });
+    res.status(201).json({ id: user.id, email: user.email, token: signToken(user.id) });
   } catch (err) {
     next(err);
   }
@@ -39,24 +39,20 @@ authRouter.post("/login", async (req, res, next) => {
       return res.status(401).json({ error: { code: "INVALID_CREDENTIALS", message: "Invalid email or password." } });
     }
 
-    req.session.userId = user.id;
-    res.json({ id: user.id, email: user.email });
+    res.json({ id: user.id, email: user.email, token: signToken(user.id) });
   } catch (err) {
     next(err);
   }
 });
 
-authRouter.post("/logout", (req, res, next) => {
-  req.session.destroy((err) => {
-    if (err) return next(err);
-    res.clearCookie("connect.sid");
-    res.status(204).end();
-  });
+// Stateless tokens can't be server-side invalidated without a revocation
+// list, which is out of scope here — logout is purely a client-side
+// action (discard the stored token). This endpoint exists for symmetry
+// and so the frontend has something to call.
+authRouter.post("/logout", (_req, res) => {
+  res.status(204).end();
 });
 
-authRouter.get("/me", (req, res) => {
-  if (!req.session.userId) {
-    return res.status(401).json({ error: { code: "NOT_AUTHENTICATED", message: "Not logged in." } });
-  }
-  res.json({ id: req.session.userId });
+authRouter.get("/me", requireAuth, (req, res) => {
+  res.json({ id: req.userId });
 });

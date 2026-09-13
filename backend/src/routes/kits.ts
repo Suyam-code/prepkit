@@ -12,7 +12,7 @@ kitsRouter.use(requireAuth);
 // List only the signed-in user's kits.
 kitsRouter.get("/", async (req, res, next) => {
   try {
-    const kits = await Kit.find({ userId: req.session.userId }).sort({ updatedAt: -1 });
+    const kits = await Kit.find({ userId: req.userId }).sort({ updatedAt: -1 });
     res.json(kits);
   } catch (err) {
     next(err);
@@ -23,7 +23,7 @@ kitsRouter.get("/", async (req, res, next) => {
 // don't leak existence of other users' kit ids.
 kitsRouter.get("/:id", async (req, res, next) => {
   try {
-    const kit = await Kit.findOne({ _id: req.params.id, userId: req.session.userId });
+    const kit = await Kit.findOne({ _id: req.params.id, userId: req.userId });
     if (!kit) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Kit not found." } });
     res.json(kit);
   } catch (err) {
@@ -47,7 +47,7 @@ kitsRouter.post("/", async (req, res, next) => {
     const { jd, company_url, days } = CreateKitSchema.parse(req.body);
 
     const kitDoc = await Kit.create({
-      userId: req.session.userId,
+      userId: req.userId,
       status: "generating",
       content: {},
     });
@@ -84,7 +84,7 @@ const EditQuestionSchema = z.object({
 kitsRouter.patch("/:id/questions/:qid", async (req, res, next) => {
   try {
     const updates = EditQuestionSchema.parse(req.body);
-    const kit = await Kit.findOne({ _id: req.params.id, userId: req.session.userId });
+    const kit = await Kit.findOne({ _id: req.params.id, userId: req.userId });
     if (!kit) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Kit not found." } });
 
     const question = kit.content?.questions?.find((q: { id: string }) => q.id === req.params.qid);
@@ -109,7 +109,7 @@ const EditFlashcardSchema = z.object({
 kitsRouter.patch("/:id/flashcards/:fid", async (req, res, next) => {
   try {
     const updates = EditFlashcardSchema.parse(req.body);
-    const kit = await Kit.findOne({ _id: req.params.id, userId: req.session.userId });
+    const kit = await Kit.findOne({ _id: req.params.id, userId: req.userId });
     if (!kit) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Kit not found." } });
 
     const card = kit.content?.flashcards?.find((c: { id: string }) => c.id === req.params.fid);
@@ -137,7 +137,7 @@ function findItem<T extends { id: string }>(list: T[] | undefined, id: string): 
 
 kitsRouter.post("/:id/questions/:qid/pin", async (req, res, next) => {
   try {
-    const kit = await Kit.findOne({ _id: req.params.id, userId: req.session.userId });
+    const kit = await Kit.findOne({ _id: req.params.id, userId: req.userId });
     if (!kit) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Kit not found." } });
     const question = findItem(kit.content?.questions, req.params.qid);
     if (!question) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Question not found." } });
@@ -152,7 +152,7 @@ kitsRouter.post("/:id/questions/:qid/pin", async (req, res, next) => {
 
 kitsRouter.post("/:id/questions/:qid/unpin", async (req, res, next) => {
   try {
-    const kit = await Kit.findOne({ _id: req.params.id, userId: req.session.userId });
+    const kit = await Kit.findOne({ _id: req.params.id, userId: req.userId });
     if (!kit) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Kit not found." } });
     const question = findItem(kit.content?.questions, req.params.qid);
     if (!question) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Question not found." } });
@@ -167,7 +167,7 @@ kitsRouter.post("/:id/questions/:qid/unpin", async (req, res, next) => {
 
 kitsRouter.post("/:id/flashcards/:fid/pin", async (req, res, next) => {
   try {
-    const kit = await Kit.findOne({ _id: req.params.id, userId: req.session.userId });
+    const kit = await Kit.findOne({ _id: req.params.id, userId: req.userId });
     if (!kit) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Kit not found." } });
     const card = findItem(kit.content?.flashcards, req.params.fid);
     if (!card) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Flashcard not found." } });
@@ -182,7 +182,7 @@ kitsRouter.post("/:id/flashcards/:fid/pin", async (req, res, next) => {
 
 kitsRouter.post("/:id/flashcards/:fid/unpin", async (req, res, next) => {
   try {
-    const kit = await Kit.findOne({ _id: req.params.id, userId: req.session.userId });
+    const kit = await Kit.findOne({ _id: req.params.id, userId: req.userId });
     if (!kit) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Kit not found." } });
     const card = findItem(kit.content?.flashcards, req.params.fid);
     if (!card) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Flashcard not found." } });
@@ -199,7 +199,7 @@ kitsRouter.post("/:id/practice/:fid", async (req, res, next) => {
   try {
     const { confidence } = z.object({ confidence: z.number().int().min(1).max(5) }).parse(req.body);
 
-    const kit = await Kit.findOne({ _id: req.params.id, userId: req.session.userId });
+    const kit = await Kit.findOne({ _id: req.params.id, userId: req.userId });
     if (!kit) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Kit not found." } });
 
     const cardExists = kit.content?.flashcards?.some((c: { id: string }) => c.id === req.params.fid);
@@ -239,7 +239,7 @@ kitsRouter.post("/:id/regenerate/:section", async (req, res, next) => {
   try {
     const section = RegenerateSectionSchema.parse(req.params.section);
 
-    const kit = await Kit.findOne({ _id: req.params.id, userId: req.session.userId });
+    const kit = await Kit.findOne({ _id: req.params.id, userId: req.userId });
     if (!kit) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Kit not found." } });
 
     const content = kit.content;

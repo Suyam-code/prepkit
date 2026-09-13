@@ -13,7 +13,7 @@ runsRouter.get("/:id", async (req, res, next) => {
     const run = await Run.findById(req.params.id);
     if (!run) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Run not found." } });
 
-    const kit = await Kit.findOne({ _id: run.kitId, userId: req.session.userId });
+    const kit = await Kit.findOne({ _id: run.kitId, userId: req.userId });
     if (!kit) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Run not found." } });
 
     res.json(run);

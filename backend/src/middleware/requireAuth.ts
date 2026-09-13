@@ -1,14 +1,36 @@
 import { RequestHandler } from "express";
+import jwt from "jsonwebtoken";
+
+const JWT_SECRET = process.env.SESSION_SECRET || "dev-secret-change-me";
 
 /**
- * Blocks any protected route for a signed-out visitor, and handles an
- * expired/invalid session as a clean 401 rather than a crash — the
- * session middleware clears req.session.userId automatically once the
- * store-backed session expires, so this check alone covers both cases.
+ * Stateless JWT bearer auth — replaces cookie-based sessions.
+ *
+ * Sessions were dropped because the frontend (Vercel) and backend
+ * (Render) live on different top-level domains. Cross-site cookies for
+ * that setup are increasingly blocked by browsers by default (Chrome in
+ * Incognito, Safari and Firefox generally) regardless of SameSite/Secure
+ * configuration — so a cookie-based session silently breaks for a real
+ * share of users. A bearer token sent explicitly in the Authorization
+ * header has no such restriction, since it isn't a cookie at all.
  */
 export const requireAuth: RequestHandler = (req, res, next) => {
-  if (!req.session?.userId) {
+  const authHeader = req.headers.authorization;
+  const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+
+  if (!token) {
     return res.status(401).json({ error: { code: "NOT_AUTHENTICATED", message: "Sign in required." } });
   }
-  next();
+
+  try {
+    const payload = jwt.verify(token, JWT_SECRET) as { userId: string };
+    req.userId = payload.userId;
+    next();
+  } catch {
+    return res.status(401).json({ error: { code: "NOT_AUTHENTICATED", message: "Sign in required." } });
+  }
 };
+
+export function signToken(userId: string): string {
+  return jwt.sign({ userId }, JWT_SECRET, { expiresIn: "7d" });
+}
