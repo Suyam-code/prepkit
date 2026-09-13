@@ -147,20 +147,38 @@ export default function KitPage() {
 
       <section className="mt-10 border-t border-line pt-6">
         <h2 className="font-serif text-xl text-ink">What they&apos;re looking for</h2>
-        <p className="mt-1 text-xs text-muted">A darker line on the left marks a must-have.</p>
-        <ul className="mt-3 flex flex-col gap-2">
-          {content.role.requirements.map((r) => (
-            <li
-              key={r.id}
-              className={`border-l-2 py-1 pl-3 text-sm text-ink/90 ${
-                r.priority === "must" ? "border-accent" : "border-line"
-              }`}
-            >
-              {r.text}
-            </li>
-          ))}
-        </ul>
+        {content.role.requirements.length > 0 ? (
+          <>
+            <p className="mt-1 text-xs text-muted">A darker line on the left marks a must-have.</p>
+            <ul className="mt-3 flex flex-col gap-2">
+              {content.role.requirements.map((r) => (
+                <li
+                  key={r.id}
+                  className={`border-l-2 py-1 pl-3 text-sm text-ink/90 ${
+                    r.priority === "must" ? "border-accent" : "border-line"
+                  }`}
+                >
+                  {r.text}
+                </li>
+              ))}
+            </ul>
+          </>
+        ) : (
+          <p className="mt-2 text-sm text-muted">
+            No specific requirements could be pulled from this job description — try pasting a
+            fuller one for a richer kit.
+          </p>
+        )}
       </section>
+
+      {questionsByCategory.size === 0 && (
+        <section className="mt-10 border-t border-line pt-6">
+          <p className="text-sm text-muted">
+            No questions could be generated — the job description may be too thin, or no company
+            information was found. Try a fuller job description.
+          </p>
+        </section>
+      )}
 
       {CATEGORY_ORDER.filter((c) => questionsByCategory.has(c)).map((category) => (
         <section key={category} className="mt-10 border-t border-line pt-6">
