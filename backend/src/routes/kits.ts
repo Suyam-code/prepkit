@@ -221,6 +221,74 @@ kitsRouter.post("/:id/practice/:fid", async (req, res, next) => {
   }
 });
 
+// --- Reordering ---
+// A simple move-up/move-down within the item's own grouping (category for
+// questions, the flat list for flashcards) rather than free drag-and-drop —
+// swaps two array positions directly so ordering is explicit and durable,
+// with no separate "order" field to keep in sync.
+
+const MoveDirectionSchema = z.object({ direction: z.enum(["up", "down"]) });
+
+kitsRouter.post("/:id/questions/:qid/move", async (req, res, next) => {
+  try {
+    const { direction } = MoveDirectionSchema.parse(req.body);
+    const kit = await Kit.findOne({ _id: req.params.id, userId: req.userId });
+    if (!kit) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Kit not found." } });
+
+    const questions = kit.content?.questions ?? [];
+    const currentIndex = questions.findIndex((q: { id: string }) => q.id === req.params.qid);
+    if (currentIndex === -1) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Question not found." } });
+
+    const category = questions[currentIndex].category;
+    const sameCategoryIndices = questions
+      .map((q: { category: string }, i: number) => ({ category: q.category, i }))
+      .filter((x: { category: string }) => x.category === category)
+      .map((x: { i: number }) => x.i);
+
+    const posInGroup = sameCategoryIndices.indexOf(currentIndex);
+    const swapWithPos = direction === "up" ? posInGroup - 1 : posInGroup + 1;
+
+    if (swapWithPos < 0 || swapWithPos >= sameCategoryIndices.length) {
+      return res.json(kit); // already at the edge of its section — no-op, not an error
+    }
+
+    const idxA = sameCategoryIndices[posInGroup];
+    const idxB = sameCategoryIndices[swapWithPos];
+    [questions[idxA], questions[idxB]] = [questions[idxB], questions[idxA]];
+
+    kit.markModified("content");
+    await kit.save();
+    res.json(kit);
+  } catch (err) {
+    next(err);
+  }
+});
+
+kitsRouter.post("/:id/flashcards/:fid/move", async (req, res, next) => {
+  try {
+    const { direction } = MoveDirectionSchema.parse(req.body);
+    const kit = await Kit.findOne({ _id: req.params.id, userId: req.userId });
+    if (!kit) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Kit not found." } });
+
+    const flashcards = kit.content?.flashcards ?? [];
+    const currentIndex = flashcards.findIndex((c: { id: string }) => c.id === req.params.fid);
+    if (currentIndex === -1) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Flashcard not found." } });
+
+    const swapWith = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+    if (swapWith < 0 || swapWith >= flashcards.length) {
+      return res.json(kit); // already at the edge — no-op
+    }
+
+    [flashcards[currentIndex], flashcards[swapWith]] = [flashcards[swapWith], flashcards[currentIndex]];
+
+    kit.markModified("content");
+    await kit.save();
+    res.json(kit);
+  } catch (err) {
+    next(err);
+  }
+});
+
 // --- Regenerate a section ---
 // Preserves edited/pinned items in that section, replaces only the
 // generated ones, re-checks coverage across the whole question set

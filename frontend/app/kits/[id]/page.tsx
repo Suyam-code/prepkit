@@ -74,6 +74,32 @@ export default function KitPage() {
     }
   }
 
+  async function moveQuestion(qid: string, direction: "up" | "down") {
+    if (!kit) return;
+    try {
+      const updated = await api<KitDoc>(`/kits/${kit._id}/questions/${qid}/move`, {
+        method: "POST",
+        body: JSON.stringify({ direction }),
+      });
+      setKit(updated);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't reorder.");
+    }
+  }
+
+  async function moveFlashcard(fid: string, direction: "up" | "down") {
+    if (!kit) return;
+    try {
+      const updated = await api<KitDoc>(`/kits/${kit._id}/flashcards/${fid}/move`, {
+        method: "POST",
+        body: JSON.stringify({ direction }),
+      });
+      setKit(updated);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't reorder.");
+    }
+  }
+
   async function regenerateSection(section: string) {
     if (!kit) return;
     setRegenerating(section);
@@ -194,12 +220,15 @@ export default function KitPage() {
             </button>
           </div>
           <ol className="mt-4 flex flex-col gap-6">
-            {questionsByCategory.get(category)!.map((q) => (
+            {questionsByCategory.get(category)!.map((q, i, arr) => (
               <QuestionItem
                 key={q.id}
                 question={q}
+                isFirst={i === 0}
+                isLast={i === arr.length - 1}
                 onSave={(updates) => saveQuestion(q.id, updates)}
                 onTogglePin={() => togglePin("questions", q.id, q.state)}
+                onMove={(direction) => moveQuestion(q.id, direction)}
               />
             ))}
           </ol>
@@ -225,12 +254,15 @@ export default function KitPage() {
             </div>
           </div>
           <dl className="mt-4 flex flex-col gap-4">
-            {content.flashcards.map((c) => (
+            {content.flashcards.map((c, i, arr) => (
               <FlashcardItem
                 key={c.id}
                 card={c}
+                isFirst={i === 0}
+                isLast={i === arr.length - 1}
                 onSave={(updates) => saveFlashcard(c.id, updates)}
                 onTogglePin={() => togglePin("flashcards", c.id, c.state)}
+                onMove={(direction) => moveFlashcard(c.id, direction)}
               />
             ))}
           </dl>
@@ -266,12 +298,18 @@ function StateTag({ state }: { state: string }) {
 
 function QuestionItem({
   question,
+  isFirst,
+  isLast,
   onSave,
   onTogglePin,
+  onMove,
 }: {
   question: Question;
+  isFirst: boolean;
+  isLast: boolean;
   onSave: (updates: { prompt?: string; answer_outline?: string }) => void;
   onTogglePin: () => void;
+  onMove: (direction: "up" | "down") => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [prompt, setPrompt] = useState(question.prompt);
@@ -331,6 +369,20 @@ function QuestionItem({
           <div className="flex shrink-0 flex-col items-end gap-1 pt-0.5">
             <StateTag state={question.state} />
             <div className="flex gap-2">
+              <button
+                onClick={() => onMove("up")}
+                disabled={isFirst}
+                className="text-xs text-muted underline underline-offset-2 disabled:opacity-30"
+              >
+                Up
+              </button>
+              <button
+                onClick={() => onMove("down")}
+                disabled={isLast}
+                className="text-xs text-muted underline underline-offset-2 disabled:opacity-30"
+              >
+                Down
+              </button>
               <button onClick={() => setEditing(true)} className="text-xs text-muted underline underline-offset-2">
                 Edit
               </button>
@@ -347,12 +399,18 @@ function QuestionItem({
 
 function FlashcardItem({
   card,
+  isFirst,
+  isLast,
   onSave,
   onTogglePin,
+  onMove,
 }: {
   card: Flashcard;
+  isFirst: boolean;
+  isLast: boolean;
   onSave: (updates: { front?: string; back?: string }) => void;
   onTogglePin: () => void;
+  onMove: (direction: "up" | "down") => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [front, setFront] = useState(card.front);
@@ -410,6 +468,20 @@ function FlashcardItem({
         <div className="flex shrink-0 flex-col items-end gap-1">
           <StateTag state={card.state} />
           <div className="flex gap-2">
+            <button
+              onClick={() => onMove("up")}
+              disabled={isFirst}
+              className="text-xs text-muted underline underline-offset-2 disabled:opacity-30"
+            >
+              Up
+            </button>
+            <button
+              onClick={() => onMove("down")}
+              disabled={isLast}
+              className="text-xs text-muted underline underline-offset-2 disabled:opacity-30"
+            >
+              Down
+            </button>
             <button onClick={() => setEditing(true)} className="text-xs text-muted underline underline-offset-2">
               Edit
             </button>
